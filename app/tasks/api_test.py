@@ -7,6 +7,7 @@
 from app import app
 
 @app.task
-def add(x, y):
-    return x + y
+def add_api(x, y):
+
+    print x, y
 

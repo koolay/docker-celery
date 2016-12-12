@@ -7,6 +7,6 @@ from app import app
 from tasks.task import TestingTask
 
 @app.task(base=TestingTask)
-def add(x, y):
-    return x + y
+def add(proj_id, proj_name):
+    print proj_id, proj_name
 
