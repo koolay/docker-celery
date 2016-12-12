@@ -6,7 +6,7 @@ RUN apk add --no-cache build-base
 ENV TZ=Asia/Shanghai APP_PATH=/app  APP_NAME=myproj LOG_LEVEL=INFO  CONCURRENCY=5
 
 COPY run.sh /celery.sh
-COPY requirement.txt $APP_PATH/requirement.txt
+COPY ../requirement.txt $APP_PATH/requirement.txt
 RUN chmod +x /celery.sh \
     && pip install -r $APP_PATH/requirement.txt
 
