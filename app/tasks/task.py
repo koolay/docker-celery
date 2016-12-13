@@ -3,13 +3,15 @@
   Created by koolay on 16-12-12.
   summary
 """
-import celery
+import traceback
 
-class TestingTask(celery.Task):
+from celery import Task
 
-    def __init__(self):
-        self.name = 'testing'
-        super.__init__()
+class BaseTask(Task):
+
+    def on_success(self, task_progress, task_id, args, kwargs):
+        print 'Task %s: success returned with progress: %s', task_id, task_progress
 
     def on_failure(self, exc, task_id, args, kwargs, einfo):
-        print '{0!r} failed: {1!r}'.format(task_id, exc)
+        print u'Task %s: failure returned', task_id
+        # print {"id": task_id, "exc": traceback.format_exc()}
