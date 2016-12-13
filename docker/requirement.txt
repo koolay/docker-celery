@@ -1,3 +1,4 @@
 redis
 celery==4.0.1
 python-dotenv
+pymongo
