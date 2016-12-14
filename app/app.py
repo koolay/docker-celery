@@ -21,16 +21,15 @@ from configs import redis_uri, mongo_uri, http_timeout
 from tasks.task import BaseTask
 
 PROJECT_NAME = 'apicloud'
+logger = logging.getLogger(__name__)
 
 # app = Celery('tasks', broker='redis://:dev@redis:6379/1')
 
-print 'connect redis: %s' % redis_uri
-print 'connect mongo: %s' % mongo_uri
+logger.debug('connect redis: %s' % redis_uri)
+logger.debug('connect mongo: %s' % mongo_uri)
 
 app = Celery(broker=redis_uri)
 app.conf.update(task_serializer='json')
-
-logger = logging.getLogger(__name__)
 
 
 @app.task(base=BaseTask, name=u'%s.testing.project' % PROJECT_NAME)
@@ -42,25 +41,25 @@ def testing_project(task_id, project_id):
     :return:
     """
 
-    print 'testing project with: %s, %s' % (task_id, project_id)
+    logger.info('testing project with: %s, %s' % (task_id, project_id))
 
     if not project_id or not task_id:
         return
 
-    if not exec_sql(task_id, project_id):
-        return
-
-    for path in db.paths.find({'projectId': project_id}, {'_id': 1}):
-        print 'found path: %s' % str(path['_id'])
-        for mock in db.mocks.find({'pathId': str(path['_id']), 'isTestCase': True}):
-            testing_api(task_id, str(mock['_id']))
-
-
-def exec_sql(task_id, project_id):
     config = apiCloudStore.get_config_by_project(project_id)
     if not config:
         logger.error(u'缺少db配置')
         return
+
+    if not exec_sql(task_id, project_id, config):
+        return
+
+    for path in db.paths.find({'projectId': project_id}, {'_id': 1}):
+        for mock in db.mocks.find({'pathId': str(path['_id']), 'isTestCase': True}):
+            testing_api(task_id, str(mock['_id']), config)
+
+
+def exec_sql(task_id, project_id, config):
 
     beforeSql = False
     beforeSqlScript = None
@@ -91,8 +90,20 @@ def exec_sql(task_id, project_id):
 
 @app.task(base=BaseTask, name=u'%s.testing.apis' % PROJECT_NAME)
 def testing_apis(task_id, testCase_ids):
+    """
+    批量测试
+    :param task_id:
+    :param testCase_ids:
+    :param config:
+    :return:
+    """
     if not task_id or type(testCase_ids) != list or len(testCase_ids) < 1:
         logger.error(u'参数为空')
+        return
+
+    config = apiCloudStore.get_config_by_task(task_id)
+    if not config:
+        logger.error(u'缺少db配置')
         return
 
     task = db.testtask.find_one({'_id': ObjectId(task_id)})
@@ -100,24 +111,27 @@ def testing_apis(task_id, testCase_ids):
         logger.error(u'task_id: %s 不存在' % task_id)
         return
 
-    if not exec_sql(task_id, task['projectId']):
+    if not exec_sql(task_id, task['projectId'], config):
         return
 
     for testCase_id in testCase_ids:
-        testing_api(task_id, testCase_id)
+        testing_api(task_id, testCase_id, config)
 
 
 @app.task(base=BaseTask, name=u'%s.testing.api' % PROJECT_NAME)
-def testing_api(task_id, testCase_id):
+def testing_api(task_id, testCase_id, config=None):
     """
     对接口自动化测试
+    :param config:
     :param task_id:
     :param testCase_id: 测试用例id, 等同于mocks._id
     :return:
     """
-    print 'received: %s, %s' % (task_id, testCase_id)
+    logger.info('received: %s, %s' % (task_id, testCase_id))
     if not testCase_id or not task_id:
         return
+    if not config:
+        config = apiCloudStore.get_config_by_task(task_id)
 
     mock = db.mocks.find_one({'_id': ObjectId(testCase_id)})
     start = datetime.datetime.now()
@@ -135,16 +149,16 @@ def testing_api(task_id, testCase_id):
         'body': mock.get('body'),
         'consumes': mock.get('consumes')[0] if mock.get('consumes') and len(
             mock.get('consumes')) > 0 else 'application/json',
-        'response': {},
+        'response': {}
     }
 
     payload = process['body'] if process['body'] else None
     headers = process['headers']
     params = process['query']
     cookies = process['cookies']
-
+    url = '%s/%s' % (config['host'].rstrip('/'), process['path'].lstrip('/'))
     try:
-        r = requests.request(process['method'], process['path'],
+        r = requests.request(process['method'], url,
                              data=payload,
                              headers=headers,
                              params=params,
@@ -154,17 +168,18 @@ def testing_api(task_id, testCase_id):
                              )
 
     except  requests.exceptions.RequestException as e:
-        print u'请求%s出现异常: %s' % (process['path'], e.message)
-        process['response']['httpError'] = e.message
+        logger.info(u'请求%s出现异常: %s' % (process['path'], e.message))
+        process['responseOn'] = datetime.datetime.now()
+        process['response']['httpError'] = e.__str__()
         process['isExpected'] = False
-        db.testTaskProcess.insert_one(process)
+        db.testtaskprocesses.insert_one(process)
         return
 
     except Exception as e:
-        print u'应用程序错误: %s' % e.message
+        logger.exception(e)
         process['response']['httpError'] = e.message
         process['isExpected'] = False
-        db.testTaskProcess.insert_one(process)
+        db.testtaskprocesses.insert_one(process)
         return
 
     body = r.text
@@ -183,5 +198,5 @@ def testing_api(task_id, testCase_id):
 
     process['response']['isExpected'] = expected
 
-    db.testTaskProcess.insert_one(process)
+    db.testtaskprocesses.insert_one(process)
     return

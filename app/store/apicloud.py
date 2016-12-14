@@ -18,7 +18,7 @@ def update_task_error(task_id, errmsg):
     :param errmsg:
     :return:
     """
-    db.testtask.update_one({'_id': ObjectId(task_id)}, {'error': errmsg})
+    db.testtasks.update_one({'_id': ObjectId(task_id)}, {'error': errmsg})
 
 
 def get_config_by_project(project_id):
@@ -33,6 +33,11 @@ def get_config_by_project(project_id):
 
     return db.envs.find_one({'projectId': project_id, 'env': DEFAULT_ENV})
 
+def get_config_by_task(task_id):
+
+    task = db.tasks.find_one({'_id': ObjectId(task_id)}, {'projectId': 1})
+    project_id = task.get('projectId')
+    return get_config_by_project(project_id)
 
 def get_sql_by_project(project_id):
     """
