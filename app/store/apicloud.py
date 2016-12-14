@@ -3,26 +3,57 @@
   Created by koolay on 16-12-13.
   summary
 """
+from bson import ObjectId
 
 from store.mongo import db
+from store.mysql import SimpleMysql
+
+DEFAULT_ENV = 'test'
 
 
-def get_testCase_by_project(project_id):
+def update_task_error(task_id, errmsg):
     """
-    根据项目id获取项目下的所有测试用例
+    更新task的异常信息
+    :param task_id:
+    :param errmsg:
+    :return:
+    """
+    db.testtask.update_one({'_id': ObjectId(task_id)}, {'error': errmsg})
+
+
+def get_config_by_project(project_id):
+    """
+    获取项目的配置参数
     :param project_id:
     :return:
     """
 
     if not project_id:
-        return []
+        return None
 
-    items = []
+    return db.envs.find_one({'projectId': project_id, 'env': DEFAULT_ENV})
 
-    for path in db.paths.find({'projectId': project_id}, {'_id': 1}):
-        print 'get path by id:' + str(path['_id'])
-        for mock in db.mocks.find({'pathId': str(path['_id'])}):
-            print 'found:' + str(mock['_id'])
-            items.append(mock)
 
-    return items
+def get_sql_by_project(project_id):
+    """
+    获取项目的sql脚本
+    :param project_id:
+    :return:
+    """
+    if not project_id:
+        return None
+
+    return db.sql.find_one({'projectId': project_id, 'env': DEFAULT_ENV})
+
+
+def exec_sql(sql, host, port, user, password):
+    """
+    执行sql脚本
+    :param sql:
+    :param conn_options: 连接参数
+    :return:
+    """
+    if not sql:
+        return
+    with SimpleMysql(host=host, port=port, user=user, passwd=password) as conn:
+        conn.execute(sql)
