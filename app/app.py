@@ -22,6 +22,7 @@ from store.mongo import db
 from celery import Celery
 from configs import redis_uri, mongo_uri, http_timeout
 from tasks.task import BaseTask
+print redis_uri, mongo_uri, http_timeout
 
 PROJECT_NAME = 'apicloud'
 init_logging()
