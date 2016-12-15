@@ -22,7 +22,6 @@ from store.mongo import db
 from celery import Celery
 from configs import redis_uri, mongo_uri, http_timeout
 from tasks.task import BaseTask
-print redis_uri, mongo_uri, http_timeout
 
 PROJECT_NAME = 'apicloud'
 init_logging()
@@ -146,6 +145,7 @@ def testing_api(task_id, testCase_id, config=None):
 
     mock = db.mocks.find_one({'_id': ObjectId(testCase_id)})
     start = datetime.datetime.now()
+    reporting = ''
     process = {
         'taskId': task_id, 'testCaseId': str(testCase_id),
         'requestOn': start,
@@ -158,6 +158,8 @@ def testing_api(task_id, testCase_id, config=None):
         'cookies': mock.get('cookies'),
         'query': mock.get('query'),
         'body': mock.get('body'),
+        'reporting': reporting,
+        'expectedResponse': {'code':mock.get('httpCode'), 'body': mock.get('responses'), 'headers': mock.get('resHeaders')},
         'consumes': mock.get('consumes')[0] if mock.get('consumes') and len(
             mock.get('consumes')) > 0 else 'application/json',
         'response': {}
@@ -179,17 +181,21 @@ def testing_api(task_id, testCase_id, config=None):
                              )
 
     except  requests.exceptions.RequestException as e:
-        logger.info(u'请求%s出现异常: %s' % (process['path'], e.message))
+        reporting = u'请求%s出现异常: %s' % (process['path'], e.message)
+        logger.info(reporting)
         process['responseOn'] = datetime.datetime.now()
         process['response']['httpError'] = e.__str__()
         process['isExpected'] = False
+        process['reporting'] = reporting
         db.testtaskprocesses.insert_one(process)
         return
 
     except Exception as e:
+        reporting = u'自动化任务出错'
         logger.exception(e)
         process['response']['httpError'] = e.message
         process['isExpected'] = False
+        process['reporting'] = reporting
         db.testtaskprocesses.insert_one(process)
         return
 
@@ -240,18 +246,20 @@ def testing_api(task_id, testCase_id, config=None):
 
     expected_status = mock.get('httpCode') == response['code']
     if not expected_status:
-        logger.debug(u'http status 匹配失败')
+        reporting = u'http status 匹配失败'
+        process['reporting'] = reporting
 
     expected_headers = compare_headers(response['headers'], mock.get('resHeaders'))
     if not expected_headers:
-        logger.info(u'http headers 匹配失败')
+        reporting = u'http headers 匹配失败'
+        process['reporting'] = reporting
 
     expected_body = compare_response_body(body, mock.get('responses'))
     if not expected_body:
-        logger.info(u'response body 匹配失败')
+        reporting = u'response body 匹配失败'
+        process['reporting'] = reporting
 
     expected = expected_status and expected_headers and expected_body
     process['response']['isExpected'] = expected
-
     db.testtaskprocesses.insert_one(process)
     return
