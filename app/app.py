@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import datetime
+import json
 from os.path import join, dirname
 
 from dotenv import load_dotenv
@@ -199,6 +200,9 @@ def testing_api(task_id, testCase_id, config=None):
 
     #### 比较响应值是否一致
     def compare_headers(new_header, to_header):
+        if new_header == to_header:
+            return True
+
         if not to_header and not new_header:
             return True
         equals = True
@@ -206,10 +210,43 @@ def testing_api(task_id, testCase_id, config=None):
             equals = equals and new_header.get(k) == v
         return equals
 
-    expected = mock.get('httpCode') == response['code'] \
-               and compare_headers(response['headers'], mock.get('resHeaders')) \
-               and mock.get('body') == body
+    def compare_response_body(new_body, to_body):
+        if not new_body and not to_body:
+            return True
 
+        tp = type(to_body)
+        if tp == dict:
+            to_body = json.dumps(to_body)
+        elif tp != str:
+            to_body = str(to_body)
+
+        if new_body == to_body:
+            return True
+
+        try:
+            j1 = json.loads(new_body)
+        except:
+            return False
+        try:
+            j2 = json.loads(to_body)
+        except:
+            return False
+
+        return j1 == j2
+
+    expected_status = mock.get('httpCode') == response['code']
+    if not expected_status:
+        logger.debug(u'http status 匹配失败')
+
+    expected_headers = compare_headers(response['headers'], mock.get('resHeaders'))
+    if not expected_headers:
+        logger.info(u'http headers 匹配失败')
+
+    expected_body = compare_response_body(body, mock.get('responses'))
+    if not expected_body:
+        logger.info(u'response body 匹配失败')
+
+    expected = expected_status and expected_headers and expected_body
     process['response']['isExpected'] = expected
 
     db.testtaskprocesses.insert_one(process)
