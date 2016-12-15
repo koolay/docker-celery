@@ -5,6 +5,8 @@ from os.path import join, dirname
 
 from dotenv import load_dotenv
 
+from loggers import init_logging
+
 dotenv_path = join(dirname(__file__), '.env')
 load_dotenv(dotenv_path)
 
@@ -22,6 +24,7 @@ from configs import redis_uri, mongo_uri, http_timeout
 from tasks.task import BaseTask
 
 PROJECT_NAME = 'apicloud'
+init_logging()
 logger = logging.getLogger(__name__)
 
 # app = Celery('tasks', broker='redis://:dev@redis:6379/1')
