@@ -48,7 +48,7 @@ def get_sql_by_project(project_id):
     if not project_id:
         return None
 
-    return db.sql.find_one({'projectId': project_id, 'env': DEFAULT_ENV})
+    return db.sqls.find_one({'projectId': project_id, 'env': DEFAULT_ENV})
 
 
 def exec_sql(sql, host, port, user, password):

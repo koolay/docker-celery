@@ -198,8 +198,16 @@ def testing_api(task_id, testCase_id, config=None):
     process['response'] = response
 
     #### 比较响应值是否一致
+    def compare_headers(new_header, to_header):
+        if not to_header and not new_header:
+            return True
+        equals = True
+        for k, v in to_header:
+            equals = equals and new_header.get(k) == v
+        return equals
+
     expected = mock.get('httpCode') == response['code'] \
-               and mock.get('resHeaders') == response['headers'] \
+               and compare_headers(response['headers'], mock.get('resHeaders')) \
                and mock.get('body') == body
 
     process['response']['isExpected'] = expected
