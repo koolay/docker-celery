@@ -14,7 +14,7 @@ RUN chmod +x /celery.sh \
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 RUN apk del build-base
-RUN mkdir $APP_PATH && chown celery:celery $APP_PATH
+RUN chown celery:celery $APP_PATH
 VOLUME ["/app"]
 WORKDIR $APP_PATH
 USER celery
