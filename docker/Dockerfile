@@ -1,5 +1,6 @@
 FROM python:2.7.12-alpine
 
+RUN addgroup -S celery && adduser -S -G celery celery
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 RUN apk add --no-cache build-base
@@ -13,6 +14,7 @@ RUN chmod +x /celery.sh \
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 RUN apk del build-base
+USER celery
 VOLUME ["/app"]
 WORKDIR $APP_PATH
 
