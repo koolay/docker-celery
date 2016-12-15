@@ -54,10 +54,16 @@ def testing_project(task_id, project_id):
     if not exec_sql(task_id, project_id, config):
         return
 
+    amount_of_test = 0
+    db.testtasks.update({'_id': ObjectId(task_id)}, {'$set': {'taskBegin': datetime.datetime.now()}})
     for path in db.paths.find({'projectId': project_id}, {'_id': 1}):
         for mock in db.mocks.find({'pathId': str(path['_id']), 'isTestCase': True}):
+            amount_of_test += 1
             testing_api(task_id, str(mock['_id']), config)
 
+    # 更新测试用例数目
+    if amount_of_test > 0:
+        db.testtasks.update({'_id': ObjectId(task_id)}, {'$set': {'testCaseCount': amount_of_test}})
 
 def exec_sql(task_id, project_id, config):
 

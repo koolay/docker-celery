@@ -10,6 +10,8 @@ COPY requirement.txt $APP_PATH/requirement.txt
 RUN chmod +x /celery.sh \
     && pip install -r $APP_PATH/requirement.txt
 
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
 RUN apk del build-base
 VOLUME ["/app"]
 WORKDIR $APP_PATH
