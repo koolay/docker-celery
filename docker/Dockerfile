@@ -18,4 +18,5 @@ RUN chown celery:celery $APP_PATH
 VOLUME ["/app"]
 WORKDIR $APP_PATH
 USER celery
+EXPOSE 5555
 ENTRYPOINT ["/celery.sh"]
